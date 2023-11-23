@@ -52,7 +52,7 @@ public:
         std::istringstream stream(str);
         std::string word;
 
-        //¸ÊÆÛ ÀÛ¾÷ Áß°£°ª ÀúÀå
+        //ë§µí¼ ì‘ì—… ì¤‘ê°„ê°’ ì €ì¥
         std::string filename = "map_output_" + key + ".txt";
         std::ofstream outputFile(filename);
 
@@ -121,13 +121,11 @@ ConcurrentQueue<std::pair<std::string, std::string>> WordCountMapper::concurrent
 int main() {
     WordCountMapper mapper;
     auto data = GetDataFromFile("input.txt");
-
     auto start = std::chrono::steady_clock::now();
 
     std::vector<std::thread> mapThreads;
     for (int i = 0; i < data.size(); ++i) {
-        mapThreads.emplace_back([line = data[i], i]() {
-            WordCountMapper mapper;
+        mapThreads.emplace_back([line = data[i], i, &mapper]() {
             mapper.Map(std::to_string(i), line);
         });
     }
@@ -143,7 +141,7 @@ int main() {
 
     auto end = std::chrono::steady_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    std::cout << "¸Ê¸®µà½º ÀÛ¾÷ ½Ã°£: " << duration.count() << "ms" << std::endl;
+    std::cout << "Elapsed time: " << duration.count() << " ms" << std::endl;
 
     return 0;
 }
