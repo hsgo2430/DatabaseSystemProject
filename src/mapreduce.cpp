@@ -47,8 +47,9 @@ class WordCountMapper : public IMapper {
 public:
     void Map(const std::string& key, const std::string& value) override {
         std::string str = value;
-
-        std::replace_if(str.begin(), str.end(), [](unsigned char c) { return !std::isalpha(c); }, ' ');
+        std::transform(str.cbegin(), str.cend(), str.begin(), [](unsigned char c) {
+            return std::isalpha(c) ? std::tolower(c) : ' ';
+        });
         std::istringstream stream(str);
         std::string word;
 
