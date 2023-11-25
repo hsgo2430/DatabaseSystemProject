@@ -20,11 +20,19 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="MapReduce.h">
+    <ClInclude Include="MapReduce.hpp">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="WordCount.hpp">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="WordCount.cpp">
       <Filter>소스 파일</Filter>
     </ClInclude>
-    <ClInclude Include="WordCount.h">
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="MapReduce.cpp">
       <Filter>소스 파일</Filter>
-    </ClInclude>
+    </None>
   </ItemGroup>
 </Project>

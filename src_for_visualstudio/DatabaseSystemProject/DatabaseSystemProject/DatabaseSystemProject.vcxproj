@@ -142,8 +142,12 @@
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="MapReduce.h" />
-    <ClInclude Include="WordCount.h" />
+    <ClInclude Include="MapReduce.hpp" />
+    <ClInclude Include="WordCount.hpp" />
+    <ClInclude Include="WordCount.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="MapReduce.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

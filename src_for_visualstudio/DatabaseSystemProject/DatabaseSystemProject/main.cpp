@@ -1,19 +1,12 @@
 ﻿#include <iostream>
 #include <cstdlib>
-#include <map>
 #include <vector>
-#include <sstream>
 #include <thread>
-#include <mutex>
-#include <fstream>
-#include <algorithm>
-#include <cctype>
-#include <queue>
 #include <windows.h>
-#include "MapReduce.h"
-#include "WordCount.h"
+#include "MapReduce.hpp"
+#include "WordCount.hpp"
 
-std::vector<std::string> GetDataFromFile(const std::string& filename) {
+std::vector<std::string> getDataFromFile(const std::string& filename) {
     std::ifstream file(filename);
     std::vector<std::string> data;
     std::string line;
@@ -24,7 +17,7 @@ std::vector<std::string> GetDataFromFile(const std::string& filename) {
     return data;
 }
 
-bool GetFileNameFromDialog(std::wstring& outFilename) {
+bool getFileNameFromDialog(std::wstring& outFilename) {
     wchar_t filename[MAX_PATH] = { 0 };
     OPENFILENAME ofn = { 0 };
     ofn.lStructSize = sizeof(ofn);
@@ -42,7 +35,7 @@ bool GetFileNameFromDialog(std::wstring& outFilename) {
     return false;
 }
 
-std::string WideStringToString(const std::wstring& wstr) {
+std::string wideStringToString(const std::wstring& wstr) {
     if (wstr.empty()) return std::string();
 
     int size_needed = WideCharToMultiByte(CP_UTF8, 0, &wstr[0], (int)wstr.size(), NULL, 0, NULL, NULL);
@@ -57,24 +50,24 @@ int main() {
 
     auto locale = std::locale(".utf-8");
     std::locale::global(locale);    // Set global locale as UTF-8
-    std::wcout.imbue(locale);       // Apply UTF-8 to wcout
-    std::wcin.imbue(locale);        // Apply UTF-8 to wcin
-    SetConsoleOutputCP(CP_UTF8);    // Apply UTF-8 to console
+    std::wcout.imbue(locale);       // Apply locale to wcout
+    std::wcin.imbue(locale);        // Apply locale to wcin
+    SetConsoleOutputCP(CP_UTF8);    // Apply locale to console
 
-    if (!GetFileNameFromDialog(inputFilename)) {
+    if (!getFileNameFromDialog(inputFilename)) {
         std::cout << "No file was selected." << std::endl;
         system("pause");
         return 1;
     }
 
     std::wcout << L"Reading file: " << inputFilename << std::endl;
-    auto data = GetDataFromFile(WideStringToString(inputFilename));
+    auto data = getDataFromFile(wideStringToString(inputFilename));
     auto start = std::chrono::steady_clock::now();
-
     std::vector<std::thread> mapThreads;
+
     for (int i = 0; i < data.size(); ++i) {
         mapThreads.emplace_back([line = data[i], i, &mapper]() {
-            mapper.Map(std::to_string(i), line);
+            mapper.map(std::to_string(i), line);
         });
     }
 
@@ -83,8 +76,8 @@ int main() {
     }
 
     WordCountReducer reducer("output.txt");
-    reducer.Reduce(mapper.getQueue());
-    reducer.WriteResults();
+    reducer.reduce(mapper.getQueue());
+    reducer.writeResults();
 
     auto end = std::chrono::steady_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
