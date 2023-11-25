@@ -1,4 +1,4 @@
-#include <iostream>
+ï»¿#include <iostream>
 #include <cstdlib>
 #include <map>
 #include <vector>
@@ -55,7 +55,7 @@ public:
         std::istringstream stream(str);
         std::string word;
 
-        //¸ÊÆÛ ÀÛ¾÷ Áß°£°ª ÀúÀå
+        // ë§µí¼ ì‘ì—… ì¤‘ê°„ê°’ ì €ì¥
         std::string filename = "map_output_" + key + ".txt";
         std::ofstream outputFile(filename);
 
@@ -150,9 +150,9 @@ std::string WideStringToString(const std::wstring& wstr) {
 
 int main() {
     WordCountMapper mapper;
-    std::locale::global(std::locale(""));  // ½Ã½ºÅÛ ±âº» ·ÎÄÉÀÏÀ» »ç¿ëÇÏµµ·Ï ¼³Á¤
-    std::wcout.imbue(std::locale());       // wcout¿¡ ·ÎÄÉÀÏÀ» Àû¿ë
-    std::wcin.imbue(std::locale());        // wcin¿¡ ·ÎÄÉÀÏÀ» Àû¿ë
+    std::locale::global(std::locale(""));  // ì‹œìŠ¤í…œ ê¸°ë³¸ ë¡œì¼€ì¼ì„ ì‚¬ìš©í•˜ë„ë¡ ì„¤ì •
+    std::wcout.imbue(std::locale());       // wcoutì— ë¡œì¼€ì¼ì„ ì ìš©
+    std::wcin.imbue(std::locale());        // wcinì— ë¡œì¼€ì¼ì„ ì ìš©
 
     std::wstring inputFilename;
     if (!GetFileNameFromDialog(inputFilename)) {
