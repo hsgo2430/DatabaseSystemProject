@@ -1,4 +1,5 @@
 #include <iostream>
+#include <cstdlib>
 #include <map>
 #include <vector>
 #include <sstream>
@@ -183,5 +184,6 @@ int main() {
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     std::cout << "Elapsed time: " << duration.count() << " ms" << std::endl;
 
+    system("pause");
     return 0;
 }

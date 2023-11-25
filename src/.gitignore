@@ -1,8 +1,0 @@
-# Execution file
-*.out
-*.o
-
-# Output file
-input.txt
-output.txt
-*_output_*.txt
