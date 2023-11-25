@@ -21,7 +21,7 @@ public:
 class IReducer {
 public:
     virtual ~IReducer() {}
-    virtual void reduce(ConcurrentQueue<std::pair<std::string, std::string>>& concurrentQueue) = 0;
+    virtual void reduce(ConcurrentQueue<std::pair<std::string, int>>& concurrentQueue) = 0;
 };
 
 #include "MapReduce.cpp"

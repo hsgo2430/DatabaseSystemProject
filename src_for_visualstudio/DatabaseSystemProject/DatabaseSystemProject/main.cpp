@@ -1,5 +1,7 @@
 ﻿#include <iostream>
+#include <cstdio>
 #include <cstdlib>
+#include <map>
 #include <vector>
 #include <thread>
 #include <windows.h>
@@ -10,10 +12,12 @@ std::vector<std::string> getDataFromFile(const std::string& filename) {
     std::ifstream file(filename);
     std::vector<std::string> data;
     std::string line;
+
     while (std::getline(file, line)) {
         data.push_back(line);
     }
     file.close();
+
     return data;
 }
 
@@ -75,9 +79,63 @@ int main() {
         thread.join();
     }
 
-    WordCountReducer reducer("output.txt");
-    reducer.reduce(mapper.getQueue());
-    reducer.writeResults();
+    // Balanced merge
+    std::vector<std::thread> threads;
+    int m = 2;  // m-way merge
+    int r = -1;  // input run index
+    int o = -1;  // output run index
+    size_t runs = data.size();  // run size
+    size_t outs = runs / m;     // output size
+
+    while (runs > 1) {
+        // debug
+        std::cout << m << "-way merge : " << runs << " runs, " << outs << " outs" << std::endl;
+
+        for (int i = 0; i < outs; i++) {
+            threads.emplace_back([&]() {
+                std::vector<std::string> files;
+
+                for (int j = 0; j < m; j++) {
+                    std::string key = std::to_string(++r);
+                    std::string filename = "map_output_" + key + ".txt";
+                    std::ifstream file(filename);
+
+                    if (file.is_open()) {
+                        files.push_back(filename);
+                    }
+                    else {
+                        --r;
+                        break;
+                    }
+                }
+
+                std::string outKey = std::to_string(++o);
+                std::string output = "map_output_" + outKey + ".txt";
+                WordCountReducer reducer(output);
+                reducer.reduce(files);
+
+                for (auto filename : files) {
+                    std::remove(filename.c_str());
+                }
+
+                reducer.writeRun();
+            });
+        }
+
+        for (auto& thread : threads) {
+            thread.join();
+        }
+
+        runs = o + 1;
+        outs = runs / m;
+    }
+
+    // debug
+    std::cout << "Merge complete." << std::endl;
+
+    //WordCountReducer reducer("output.txt");
+    //reducer.reduce(mapper.getQueue());
+    //reducer.writeRun();
 
     auto end = std::chrono::steady_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
