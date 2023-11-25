@@ -23,5 +23,8 @@
     <ClInclude Include="MapReduce.h">
       <Filter>소스 파일</Filter>
     </ClInclude>
+    <ClInclude Include="WordCount.h">
+      <Filter>소스 파일</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
