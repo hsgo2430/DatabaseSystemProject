@@ -157,6 +157,7 @@ int main() {
     std::wstring inputFilename;
     if (!GetFileNameFromDialog(inputFilename)) {
         std::wcout << L"No file was selected." << std::endl;
+        system("pause");
         return 1;
     }
 
