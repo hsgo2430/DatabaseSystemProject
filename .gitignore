@@ -1,2 +1,12 @@
-# Visual Studio Code
+# Visual Studio
 .vscode/
+**/.vs/
+
+# Build files
+**/x64/
+**/Debug
+*.out
+
+# Output files
+output.txt
+*_output_*.txt
