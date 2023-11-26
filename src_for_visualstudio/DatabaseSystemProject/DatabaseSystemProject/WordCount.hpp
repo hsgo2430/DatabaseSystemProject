@@ -5,9 +5,11 @@
 
 class WordCountMapper : public IMapper {
 public:
+    WordCountMapper(bool inplace);
     void map(const std::string& key, const std::string& value) override;
     ConcurrentQueue<std::pair<std::string, int>>& getQueue();
 private:
+    bool inplace;
     ConcurrentQueue<std::pair<std::string, int>> concurrentQueue;
 };
 
@@ -15,24 +17,20 @@ class WordCountReducer : public IReducer {
 public:
     WordCountReducer(const std::string& filename);
     ~WordCountReducer();
-
-   /**
-    * Reduce runs in-place by internal sort.
-    * @param concurrentQueue contents of runs
-    */
     void reduce(ConcurrentQueue<std::pair<std::string, int>>& concurrentQueue) override;
-
-   /**
-    * Reduce intermediate runs by m-way balanced merge.
-    * @param runs files to merge
-    */
-    void reduce(std::vector<std::string> runs);
-
-    // Write merge results to another run file.
+    void reduce(std::vector<std::string> runs) override;
     void writeRun();
 private:
     std::ofstream outputFile;
     std::map<std::string, int> results;
 };
+
+/**
+ * Count words in the given file.
+ * @param filename name of the input file
+ * @param inplace tells if external sorting algorithm should be applied to reduce tasks
+ * @param m (optional) m-way balanced merge is applied only if inplace = true
+ */
+void countWords(const std::wstring& filename, bool inplace, int m = 2);
 
 #include "WordCount.cpp"
