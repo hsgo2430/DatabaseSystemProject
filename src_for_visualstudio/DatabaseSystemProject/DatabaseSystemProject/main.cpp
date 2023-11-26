@@ -1,8 +1,10 @@
 ﻿#include <iostream>
+#include <fstream>
 #include <cstdlib>
 #include <windows.h>
 #include "MapReduce.hpp"
 #include "WordCount.hpp"
+#include "Profiler.hpp"
 
 bool getFileNameFromDialog(std::wstring& outFilename) {
     wchar_t filename[MAX_PATH] = { 0 };
@@ -22,14 +24,36 @@ bool getFileNameFromDialog(std::wstring& outFilename) {
     return false;
 }
 
-int main() {
-    std::wstring inputFilename;
+long getLines(const std::wstring& filename) {
+    std::ifstream file(filename);
+    std::string word;
+    long lines = 0;
 
+    if (file.is_open()) {
+        while (file >> word) {
+            ++lines;
+        }
+    }
+    return lines;
+}
+
+int main() {
+    // Start memory profiler
+    auto* profiler = Profiler::getInstance();
+    profiler->start();
+
+
+    // Change system locale
     auto locale = std::locale(".utf-8");
     std::locale::global(locale);    // Set global locale as UTF-8
     std::wcout.imbue(locale);       // Apply locale to wcout
     std::wcin.imbue(locale);        // Apply locale to wcin
     SetConsoleOutputCP(CP_UTF8);    // Apply locale to console
+
+
+    // Prompt to select a file
+    std::wstring inputFilename;
+    std::cout << "Please select a file..." << std::endl;
 
     if (!getFileNameFromDialog(inputFilename)) {
         std::cout << "No file was selected." << std::endl;
@@ -37,16 +61,52 @@ int main() {
         return 1;
     }
 
-    bool inplace = false;    // in-place vs external-sort
-    int m = 2;               // m-way balanced merge
+    std::cout << getLines(inputFilename) << " lines of text found!" << std::endl;
+
+    // Prompt to select sorting algorithm
+    int mode = 0;
+
+    while (mode < 1 || mode > 2) {
+        std::cout << std::endl;
+        std::cout << "[1] In-place sorting (Fast, high RAM usage)" << std::endl;
+        std::cout << "[2] External sorting (Slow, high I/O usage)" << std::endl;
+        std::cout << "Select sorting algorithm: ";
+        std::cin >> mode;
+    }
+
+    bool inplace = (mode == 1);
+    int m = 2;
+
+    if (!inplace) {
+        std::string str;
+        std::cout << std::endl;
+        std::cout << "Select m-way balanced merge (default=2): ";
+        std::cin.ignore(INT_MAX, '\n');
+        std::getline(std::cin, str);
+
+        try {
+            m = std::stoi(str);
+        }
+        catch (...) {
+            m = 2;
+        }
+    }
+
+
+    // Run map-reduce application
     auto start = std::chrono::steady_clock::now();
 
     countWords(inputFilename, inplace, m);
 
     auto end = std::chrono::steady_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    auto memory = profiler->getPeakMemory();
+    profiler->stop();
 
+    std::cout << std::endl;
     std::cout << "Elapsed time: " << duration.count() << " ms" << std::endl;
-    system("pause");
+    std::cout << "Peak memory: " << memory << " bytes" << std::endl;
+
+    system("pause");   // Keep terminal open (for Windows)
     return 0;
 }

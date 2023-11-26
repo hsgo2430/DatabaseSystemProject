@@ -107,8 +107,9 @@ std::string wideStringToString(const std::wstring& wstr) {
     return strTo;
 }
 
-void countWords(const std::wstring& filename, bool inplace, int m = 2) {
+void countWords(const std::wstring& filename, bool inplace, int m) {
     WordCountMapper mapper(inplace);
+    std::cout << std::endl;
     std::wcout << L"Reading file: " << filename << std::endl;
     auto data = getDataFromFile(wideStringToString(filename));
     std::vector<std::thread> mapThreads;

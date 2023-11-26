@@ -140,9 +140,11 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="Profiler.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MapReduce.hpp" />
+    <ClInclude Include="Profiler.hpp" />
     <ClInclude Include="WordCount.hpp" />
     <ClInclude Include="WordCount.cpp" />
   </ItemGroup>

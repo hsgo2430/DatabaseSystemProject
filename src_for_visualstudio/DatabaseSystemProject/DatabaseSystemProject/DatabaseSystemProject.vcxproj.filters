@@ -18,6 +18,9 @@
     <ClCompile Include="main.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
+    <ClCompile Include="Profiler.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MapReduce.hpp">
@@ -28,6 +31,9 @@
     </ClInclude>
     <ClInclude Include="WordCount.cpp">
       <Filter>소스 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="Profiler.hpp">
+      <Filter>헤더 파일</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
