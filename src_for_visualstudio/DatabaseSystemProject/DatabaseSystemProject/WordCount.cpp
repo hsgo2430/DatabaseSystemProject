@@ -6,7 +6,9 @@
 #include <fstream>
 #include <sstream>
 #include <cctype>
+#include "Profiler.hpp"
 #include "WordCount.hpp"
+#include "Utility.hpp"
 
 WordCountMapper::WordCountMapper(bool inplace) {
     WordCountMapper::inplace = inplace;
@@ -31,7 +33,7 @@ void WordCountMapper::map(const std::string& key, const std::string& value) {
 
     if (!inplace) {
         // A file storing intermediate mapping result
-        std::string filename = "run_0" + key + ".txt";
+        std::string filename = "run_0_" + key + ".txt";
         std::ofstream outputFile(filename);
 
         for (auto pair : pairs) {
@@ -85,44 +87,29 @@ void WordCountReducer::writeRun() {
     }
 }
 
-std::vector<std::string> getDataFromFile(const std::string& filename) {
-    std::ifstream file(filename);
-    std::vector<std::string> data;
-    std::string line;
-
-    while (std::getline(file, line)) {
-        data.push_back(line);
-    }
-    file.close();
-
-    return data;
-}
-
-std::string wideStringToString(const std::wstring& wstr) {
-    if (wstr.empty()) return std::string();
-
-    int size_needed = WideCharToMultiByte(CP_UTF8, 0, &wstr[0], (int)wstr.size(), NULL, 0, NULL, NULL);
-    std::string strTo(size_needed, 0);
-    WideCharToMultiByte(CP_UTF8, 0, &wstr[0], (int)wstr.size(), &strTo[0], size_needed, NULL, NULL);
-    return strTo;
-}
-
 void countWords(const std::wstring& filename, bool inplace, int m) {
     WordCountMapper mapper(inplace);
     std::cout << std::endl;
     std::wcout << L"Reading file: " << filename << std::endl;
-    auto data = getDataFromFile(wideStringToString(filename));
+    auto lines = getFileLines(wideStringToString(filename));
     std::vector<std::thread> mapThreads;
+    long t_num = static_cast<double>(lines.size());
 
-    for (int i = 0; i < data.size(); ++i) {
-        mapThreads.emplace_back([line = data[i], i, &mapper]() {
+    std::cout << "Mapping words...";
+    printProgress(t_num, true);
+
+    for (long i = 0; i < t_num; ++i) {
+        mapThreads.emplace_back([line = lines[i], i, &mapper, t_num]() {
             mapper.map(std::to_string(i), line);
+            printProgress(t_num, false);
         });
     }
 
     for (auto& thread : mapThreads) {
         thread.join();
     }
+
+    std::cout << std::endl;
 
     if (inplace) {
         WordCountReducer reducer("output.txt");
@@ -137,14 +124,15 @@ void countWords(const std::wstring& filename, bool inplace, int m) {
     int r = -1;  // input run index
     int o = -1;  // output run index
     int step = 0;
-    size_t runs = data.size();  // run size
+    size_t runs = lines.size();  // run size
     size_t outs = runs / m;     // output size
     std::string i_key = std::to_string(step);
 
     while (runs > 1) {
         ++step;
         std::string o_key = std::to_string(step);
-        std::cout << '[' << step << "] " << m << "-way merge : " << runs << " runs, " << outs << " outs" << std::endl;
+        size_t mem = Profiler::getInstance()->getAllocatedMemory();
+        std::cout << '[' << step << "]\t" << m << "-way merge : " << runs << " runs, " << outs << " outs, " << toBytesFormat(mem) << std::endl;
 
         for (int i = 0; i < outs; i++) {
             threads.emplace_back([&]() {
@@ -153,7 +141,7 @@ void countWords(const std::wstring& filename, bool inplace, int m) {
                 for (int j = 0; j < m; j++) {
                     ++r;
                     std::string r_key = std::to_string(r);
-                    std::string rfilename = "run_" + i_key + r_key + ".txt";
+                    std::string rfilename = "run_" + i_key + "_" + r_key + ".txt";
                     std::ifstream file(rfilename);
 
                     if (file.is_open()) {
@@ -170,7 +158,7 @@ void countWords(const std::wstring& filename, bool inplace, int m) {
                 std::string output;
 
                 if (outs > 1) {
-                    output = "run_" + o_key + r_key + ".txt";
+                    output = "run_" + o_key + "_" + r_key + ".txt";
                 }
                 else {
                     output = "output.txt";

@@ -5,6 +5,7 @@
 #include "MapReduce.hpp"
 #include "WordCount.hpp"
 #include "Profiler.hpp"
+#include "Utility.hpp"
 
 bool getFileNameFromDialog(std::wstring& outFilename) {
     wchar_t filename[MAX_PATH] = { 0 };
@@ -38,11 +39,6 @@ long getLines(const std::wstring& filename) {
 }
 
 int main() {
-    // Start memory profiler
-    auto* profiler = Profiler::getInstance();
-    profiler->start();
-
-
     // Change system locale
     auto locale = std::locale(".utf-8");
     std::locale::global(locale);    // Set global locale as UTF-8
@@ -92,20 +88,19 @@ int main() {
         }
     }
 
+    // Start benchmarking
+    auto& profiler = Profiler::start();
 
     // Run map-reduce application
-    auto start = std::chrono::steady_clock::now();
-
     countWords(inputFilename, inplace, m);
 
-    auto end = std::chrono::steady_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    auto memory = profiler->getPeakMemory();
-    profiler->stop();
+    // Aggregate benchmarking data
+    auto benchmark = profiler.finish();
 
     std::cout << std::endl;
-    std::cout << "Elapsed time: " << duration.count() << " ms" << std::endl;
-    std::cout << "Peak memory: " << memory << " bytes" << std::endl;
+    std::cout << "Elapsed time:\t" << toTimeFormat(benchmark.elapsedTime) << std::endl;
+    std::cout << "Maximum memory:\t" << toBytesFormat(benchmark.maxMemory) << std::endl;
+    std::cout << "Average memory:\t" << toBytesFormat(benchmark.avgMemory) << std::endl;
 
     system("pause");   // Keep terminal open (for Windows)
     return 0;
