@@ -5,6 +5,7 @@
 #include "MapReduce.hpp"
 #include "WordCount.hpp"
 #include "Profiler.hpp"
+#include "Utility.hpp"
 
 bool getFileNameFromDialog(std::wstring& outFilename) {
     wchar_t filename[MAX_PATH] = { 0 };
@@ -98,8 +99,8 @@ int main() {
 
     std::cout << std::endl;
     std::cout << "Elapsed time:\t" << benchmark.elapsedTime << " ms" << std::endl;
-    std::cout << "Maximum memory:\t" << benchmark.maxMemory << " bytes" << std::endl;
-    std::cout << "Average memory:\t" << benchmark.avgMemory << " bytes" << std::endl;
+    std::cout << "Maximum memory:\t" << toBytesFormat(benchmark.maxMemory) << std::endl;
+    std::cout << "Average memory:\t" << toBytesFormat(benchmark.avgMemory) << std::endl;
 
     system("pause");   // Keep terminal open (for Windows)
     return 0;

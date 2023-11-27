@@ -8,6 +8,7 @@
 #include <cctype>
 #include "Profiler.hpp"
 #include "WordCount.hpp"
+#include "Utility.hpp"
 
 WordCountMapper::WordCountMapper(bool inplace) {
     WordCountMapper::inplace = inplace;
@@ -86,54 +87,21 @@ void WordCountReducer::writeRun() {
     }
 }
 
-std::vector<std::string> getDataFromFile(const std::string& filename) {
-    std::ifstream file(filename);
-    std::vector<std::string> data;
-    std::string line;
-
-    while (std::getline(file, line)) {
-        data.push_back(line);
-    }
-    file.close();
-
-    return data;
-}
-
-std::string wideStringToString(const std::wstring& wstr) {
-    if (wstr.empty()) return std::string();
-
-    int size_needed = WideCharToMultiByte(CP_UTF8, 0, &wstr[0], (int)wstr.size(), NULL, 0, NULL, NULL);
-    std::string strTo(size_needed, 0);
-    WideCharToMultiByte(CP_UTF8, 0, &wstr[0], (int)wstr.size(), &strTo[0], size_needed, NULL, NULL);
-    return strTo;
-}
-
-std::mutex m_progress;
-
 void countWords(const std::wstring& filename, bool inplace, int m) {
     WordCountMapper mapper(inplace);
     std::cout << std::endl;
     std::wcout << L"Reading file: " << filename << std::endl;
-    auto data = getDataFromFile(wideStringToString(filename));
-    long t_num = static_cast<double>(data.size());
+    auto lines = getFileLines(wideStringToString(filename));
     std::vector<std::thread> mapThreads;
+    long t_num = static_cast<double>(lines.size());
 
-    int prev_progress = 0;
-    long done_num = 0;
-    std::cout << "Mapping words..." << "    ";
+    std::cout << "Mapping words...";
+    printProgress(t_num, true);
 
-    for (size_t i = 0; i < data.size(); ++i) {
-        mapThreads.emplace_back([line = data[i], i, &mapper, &done_num, t_num, &prev_progress]() {
+    for (long i = 0; i < t_num; ++i) {
+        mapThreads.emplace_back([line = lines[i], i, &mapper, t_num]() {
             mapper.map(std::to_string(i), line);
-
-            int progress = static_cast<int>(static_cast<double>(++done_num) / t_num * 100);
-            if (progress > prev_progress && progress % 5 == 0) {
-                m_progress.lock();
-                std::cout << "\b\b\b\b    \b\b\b\b";
-                printf("%3d%%", progress);
-                m_progress.unlock();
-            }
-            prev_progress = progress;
+            printProgress(t_num, false);
         });
     }
 
@@ -156,15 +124,16 @@ void countWords(const std::wstring& filename, bool inplace, int m) {
     int r = -1;  // input run index
     int o = -1;  // output run index
     int step = 0;
-    size_t runs = data.size();  // run size
+    size_t runs = lines.size();  // run size
     size_t outs = runs / m;     // output size
     std::string i_key = std::to_string(step);
 
     while (runs > 1) {
         ++step;
         std::string o_key = std::to_string(step);
-        size_t mem = Profiler::getInstance()->getAllocatedMemory();
-        std::cout << '[' << step << "]\t" << m << "-way merge : " << runs << " runs, " << outs << " outs, " << mem << " bytes" << std::endl;
+        size_t bytes = Profiler::getInstance()->getAllocatedMemory();
+        char* mem = toBytesFormat(bytes);
+        std::cout << '[' << step << "]\t" << m << "-way merge : " << runs << " runs, " << outs << " outs, " << mem << std::endl;
 
         for (int i = 0; i < outs; i++) {
             threads.emplace_back([&]() {
