@@ -39,6 +39,8 @@ public:
 	// Get current size of memory allocated
 	size_t getAllocatedMemory();
 
+	size_t getPeakMemory();
+
 	// Delete copy constructor
 	Profiler(const Profiler& obj) = delete;
 
@@ -48,12 +50,17 @@ public:
 	// Allow overloading function to access private members
 	friend void _delete(void* ptr);
 
+	// Allow overloading function to access private members
+	friend void _delete(void* ptr, size_t size);
+
 private:
 	// Constructor
 	Profiler();
 
 	// Singleton instance
 	static Profiler* instance;
+
+	void updateMemory();
 
 	// Is this profiler running?
 	bool running;
@@ -72,6 +79,8 @@ private:
 
 	// Aggregated samples of memory allocation
 	size_t aggAlloc;
+
+	size_t avgAlloc;
 
 	// Number of samples
 	long steps;

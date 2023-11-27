@@ -98,7 +98,7 @@ int main() {
     auto benchmark = profiler.finish();
 
     std::cout << std::endl;
-    std::cout << "Elapsed time:\t" << benchmark.elapsedTime << " ms" << std::endl;
+    std::cout << "Elapsed time:\t" << toTimeFormat(benchmark.elapsedTime) << std::endl;
     std::cout << "Maximum memory:\t" << toBytesFormat(benchmark.maxMemory) << std::endl;
     std::cout << "Average memory:\t" << toBytesFormat(benchmark.avgMemory) << std::endl;
 

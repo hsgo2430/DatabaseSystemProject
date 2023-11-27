@@ -53,12 +53,12 @@ void printProgress(long target, bool init) {
     m.unlock();
 }
 
-char* toBytesFormat(long bytes) {
+std::string toBytesFormat(long bytes) {
     static const size_t BUF_SIZE = 100;
     static const char* suffix[] = {
         "bytes", "kB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB", "RB", "QB"
     };
-    char* buf = (char*)malloc(sizeof(char) * BUF_SIZE);
+    char* buf = (char*) malloc(sizeof(char) * BUF_SIZE);
     double _bytes = static_cast<double>(bytes);
     int i = 0;
 
@@ -68,5 +68,33 @@ char* toBytesFormat(long bytes) {
     }
 
     sprintf_s(buf, BUF_SIZE, "%.1f %s", _bytes, suffix[i]);
-    return buf;
+    return std::string(buf);
+}
+
+std::string toTimeFormat(long milliseconds) {
+    static const size_t BUF_SIZE = 200;
+
+    if (milliseconds < 10000) {
+        auto str = std::to_string(milliseconds) + " ms";
+        return str.c_str();
+    }
+
+    char* buf = (char*) malloc(sizeof(char) * BUF_SIZE);
+    int sec = milliseconds / 1000;
+    int min = sec / 60;
+    int hr = min / 60;
+    min -= hr * 60;
+    sec -= min * 60;
+
+    if (hr > 0) {
+        sprintf_s(buf, BUF_SIZE, "%d hr %d min %d sec", hr, min, sec);
+    }
+    else if (min > 0) {
+        sprintf_s(buf, BUF_SIZE, "%d min %d sec", min, sec);
+    }
+    else {
+        sprintf_s(buf, BUF_SIZE, "%d sec", sec);
+    }
+    
+    return std::string(buf);
 }

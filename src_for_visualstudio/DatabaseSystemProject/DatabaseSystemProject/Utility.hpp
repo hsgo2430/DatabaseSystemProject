@@ -7,4 +7,6 @@ std::string wideStringToString(const std::wstring& wstr);
 
 void printProgress(long target, bool init);
 
-char* toBytesFormat(long bytes);
+std::string toBytesFormat(long bytes);
+
+std::string toTimeFormat(long milliseconds);

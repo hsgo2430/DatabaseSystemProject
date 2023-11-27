@@ -131,9 +131,8 @@ void countWords(const std::wstring& filename, bool inplace, int m) {
     while (runs > 1) {
         ++step;
         std::string o_key = std::to_string(step);
-        size_t bytes = Profiler::getInstance()->getAllocatedMemory();
-        char* mem = toBytesFormat(bytes);
-        std::cout << '[' << step << "]\t" << m << "-way merge : " << runs << " runs, " << outs << " outs, " << mem << std::endl;
+        size_t mem = Profiler::getInstance()->getAllocatedMemory();
+        std::cout << '[' << step << "]\t" << m << "-way merge : " << runs << " runs, " << outs << " outs, " << toBytesFormat(mem) << std::endl;
 
         for (int i = 0; i < outs; i++) {
             threads.emplace_back([&]() {

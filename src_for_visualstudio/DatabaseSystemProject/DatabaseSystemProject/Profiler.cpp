@@ -1,12 +1,14 @@
 #include <iostream>
 #include <cstdlib>
-#include "malloc.h"
 #include <mutex>
+#include <windows.h>
+#include <psapi.h>
+#include "malloc.h"
 #include "Profiler.hpp"
 
 Profiler* Profiler::instance = NULL;
 
-std::mutex m;
+std::mutex m1, m2;
 
 Profiler::Profiler() {
     reset();
@@ -37,9 +39,9 @@ Benchmark Profiler::finish() {
 
     auto now = chrono::steady_clock::now();
     time_t duration = chrono::duration_cast<chrono::milliseconds>(now - startPoint).count();
-    size_t& maxMemory = maxAlloc;
-    size_t avgMemory = (steps > 0) ? (aggAlloc / steps) : 0;
-    Benchmark ret = { duration, maxMemory, avgMemory };
+    //size_t& maxMemory = maxAlloc;
+    //size_t avgMemory = (steps > 0) ? (aggAlloc / steps) : 0;
+    Benchmark ret = { duration, getPeakMemory(), avgAlloc };
     reset();
 
     return ret;
@@ -56,8 +58,17 @@ void Profiler::reset() {
     lagTime = 0;
 }
 
+// todo support platforms other than Windows
 size_t Profiler::getAllocatedMemory() {
-    return alloc;
+    PROCESS_MEMORY_COUNTERS info;
+    GetProcessMemoryInfo(GetCurrentProcess(), &info, sizeof(info));
+    return static_cast<size_t>(info.WorkingSetSize);
+}
+
+size_t Profiler::getPeakMemory() {
+    PROCESS_MEMORY_COUNTERS info;
+    GetProcessMemoryInfo(GetCurrentProcess(), &info, sizeof(info));
+    return static_cast<size_t>(info.PeakWorkingSetSize);
 }
 
 Profiler* Profiler::getInstance() {
@@ -67,64 +78,111 @@ Profiler* Profiler::getInstance() {
     return instance;
 }
 
+void Profiler::updateMemory() {
+    aggAlloc += getAllocatedMemory();
+    avgAlloc = aggAlloc / ++steps;
+}
+
 void* _new(size_t size) {
+    std::lock_guard<std::mutex> lock(m1);
     void* ptr = malloc(size);
-
-    // Check if profiler is available (prevents endless loop)
-    if (Profiler::instance == NULL) {
-        return ptr;
-    }
-
-    auto* p = Profiler::getInstance();
-
-    if (p->trackNew) {
-        auto key = reinterpret_cast<std::uintptr_t>(ptr);
-
-        m.lock();
-        p->trackNew = false;
-        p->pmap[key] = size;  // calls new operator
-        p->trackNew = true;
-        m.unlock();
-
-        p->alloc += size;
-        p->aggAlloc += p->alloc;
-        p->maxAlloc = std::max(p->alloc, p->maxAlloc);
-        p->steps += 1;
+    
+    if (Profiler::instance != NULL) {
+        Profiler::getInstance()->updateMemory();
     }
 
     return ptr;
 }
 
 void _delete(void* ptr) {
-    auto* p = Profiler::getInstance();
-    auto key = reinterpret_cast<std::uintptr_t>(ptr);
+    std::lock_guard<std::mutex> lock(m1);
+
+    if (Profiler::instance != NULL) {
+        Profiler::getInstance()->updateMemory();
+    }
+
     free(ptr);
-
-    if (!p->trackDel) {
-        return;
-    }
-
-    auto* map = &(p->pmap);
-
-    m.lock();
-    p->trackDel = false;
-    auto iter = map->find(key);
-
-    if (iter == map->end()) {  // if key not found
-        p->trackDel = true;
-        m.unlock();
-        return;
-    }
-
-    size_t size = map->at(key);
-    map->erase(key);  // calls delete operator
-    p->trackDel = true;
-    m.unlock();
-
-    p->alloc -= size;
-    p->aggAlloc += p->alloc;
-    p->steps += 1;
 }
+
+void _delete(void* ptr, size_t size) {
+    _delete(ptr);
+}
+
+// ----- deprecated due to inaccuracy ------
+// 
+//void* _new(size_t size) {
+//    m1.lock();
+//
+//    void* ptr = std::malloc(size + sizeof(size_t));
+//
+//    if (!ptr) {
+//        m1.unlock();
+//        return 0;
+//    }
+//
+//    // Check if profiler is available (prevents endless loop)
+//    if (Profiler::instance == NULL) {
+//        m1.unlock();
+//        return ptr;
+//    }
+//
+//    // Track memory size
+//    auto* p = Profiler::getInstance();
+//
+//    if (p->trackNew) {
+//        p->alloc += size;
+//    }
+//
+//    // Append memory size at front of the pointer
+//    *static_cast<size_t*>(ptr) = size;
+//
+//    // Adjust pointer to point the actual data
+//    void* new_ptr = static_cast<char*>(ptr) + sizeof(size_t);
+//
+//    m1.unlock();
+//    return new_ptr;
+//}
+//
+//void _delete(void* ptr) {
+//    m1.lock();
+//    if (Profiler::instance == NULL) {
+//        free(ptr);
+//        m1.unlock();
+//        return;
+//    }
+//
+//    // Adjust pointer to point the size info
+//    void* size_ptr = static_cast<char*>(ptr) - sizeof(size_t);
+//
+//    // Get memory size
+//    size_t size = *static_cast<size_t*>(size_ptr);
+//
+//    auto* p = Profiler::getInstance();
+//
+//    if (p->trackDel) {
+//        p->alloc -= size;
+//    }
+//
+//    free(size_ptr);
+//    m1.unlock();
+//}
+//
+//void _delete(void* ptr, size_t size) {
+//    m1.lock();
+//
+//    if (Profiler::instance == NULL) {
+//        free(ptr);
+//        m1.unlock();
+//        return;
+//    }
+//
+//    void* size_ptr = static_cast<char*>(ptr) - sizeof(size_t);
+//    auto* p = Profiler::getInstance();
+//    p->alloc -= size;
+//
+//    free(size_ptr);
+//    m1.unlock();
+//}
 
 // ----- Dynamic allocation overloading -----
 
@@ -153,11 +211,11 @@ void operator delete[](void* ptr) {
 }
 
 void operator delete(void* ptr, std::size_t size) {
-    _delete(ptr);
+    _delete(ptr, size);
 }
 
 void operator delete[](void* ptr, std::size_t size) {
-    _delete(ptr);
+    _delete(ptr, size);
 }
 
 void operator delete(void* ptr, const std::nothrow_t& tag) {
