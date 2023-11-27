@@ -1,32 +1,52 @@
 #pragma once
 #include <map>
 #include <cstdint>
+#include <chrono>
 
+namespace chrono = std::chrono;
+typedef long long time_t;
+
+/* Benchmark result */
+struct Benchmark {
+	// Duration between start and finish in milliseconds
+	time_t elapsedTime;
+	
+	// Maximum size of memory allocated
+	size_t maxMemory;
+
+	// Average size of memory allocated
+	size_t avgMemory;
+};
+
+/* Profiler lets you measure the performance of any task. */
 class Profiler {
 public:
-   /**
-	* Access the instance of this class.
-	* @return a pointer to the instance
-	*/
+	/**
+	 * Start benchmarking
+	 * @return the profiler instance
+	 */
+	static Profiler& start();
+
+	// Access the instance
 	static Profiler* getInstance();
 
-	// Start memory profiler
-	void start();
+	// Finish benchmarking
+	Benchmark finish();
 
-	// Stop memory profiler
-	void stop();
+	// Reset metrics
+	void reset();
 
-	// Get maximum size of memory allocated
-	size_t getPeakMemory();
+	// Get current size of memory allocated
+	size_t getAllocatedMemory();
 
 	// Delete copy constructor
 	Profiler(const Profiler& obj) = delete;
 
-	// Allow private access to new operator
-	friend void* operator new(size_t size);
+	// Allow overloading function to access private members
+	friend void* _new(size_t size);
 
-	// Allow private access to delete operator
-	friend void operator delete(void* ptr);
+	// Allow overloading function to access private members
+	friend void _delete(void* ptr);
 
 private:
 	// Constructor
@@ -35,8 +55,8 @@ private:
 	// Singleton instance
 	static Profiler* instance;
 
-	// Memory size tracker
-	std::map<std::uintptr_t, size_t> pmap;
+	// Is this profiler running?
+	bool running;
 
 	// Should malloc be tracked?
 	bool trackNew;
@@ -44,9 +64,24 @@ private:
 	// Should free be tracked?
 	bool trackDel;
 
-	// Current size of memory allocation
+	// Current memory allocation
 	size_t alloc;
 
-	// Peak size of memory allocation
+	// Peak memory allocation
 	size_t maxAlloc;
+
+	// Aggregated samples of memory allocation
+	size_t aggAlloc;
+
+	// Number of samples
+	long steps;
+
+	// Aggregated time consumed to record samples
+	time_t lagTime;
+
+	// Memory size tracker
+	std::map<std::uintptr_t, size_t> pmap;
+
+	// The point in time when benchmark is started
+	chrono::time_point<chrono::steady_clock> startPoint;
 };
