@@ -34,7 +34,11 @@ void WordCountMapper::map(const std::string& key, const std::string& value) {
     if (!inplace) {
         // A file storing intermediate mapping result
         std::string filename = "run_0_" + key + ".txt";
-        std::ofstream outputFile(filename);
+        std::ofstream outputFile(filename, std::ios::app);
+
+        if (!outputFile.is_open()) {
+            throw std::runtime_error("File cannot be created!");
+        }
 
         for (auto pair : pairs) {
             outputFile << pair.first << ": " << pair.second << '\n';
@@ -90,24 +94,32 @@ void WordCountReducer::writeRun() {
 void countWords(const std::vector<std::string>& lines, bool inplace, int m, int batch) {
     WordCountMapper mapper(inplace);
     long size = static_cast<double>(lines.size());
-    long i = 0;
-    long counter = 0;
+    long b = 0;        // batch index
+    long counter = 0;  // number of lines processed
     std::vector<std::thread> mapThreads;
     std::mutex mtx;
 
     std::cout << "Mapping words...";
-    printProgress(i, size, true);
+    printProgress(0, size, true);
 
-    for (i = 0; (i + batch - 1) < size; i += batch) {
-        mapThreads.emplace_back([i, size, batch, &counter, &lines, &mtx, &mapper]() {
-            for (int b = 0; b < batch; ++b) {
-                mapper.map(std::to_string(i), lines[i + b]);
+    for (int i = 0; (i + batch - 1) < size; i += batch) {
+        mapThreads.emplace_back([i, b, size, batch, &counter, &lines, &mtx, &mapper]() {
+            std::string key = std::to_string(b);
+            std::string filename = "run_0_" + key + ".txt";
+
+            // ensure there isn't an overlapping file
+            remove(filename.c_str());
+
+            for (int j = 0; j < batch; ++j) {
+                mapper.map(key, lines[i + j]);
             }
             mtx.lock();
             counter += batch;
             printProgress(counter, size, false);
             mtx.unlock();
         });
+
+        ++b;
     }
 
     for (auto& thread : mapThreads) {
@@ -117,8 +129,8 @@ void countWords(const std::vector<std::string>& lines, bool inplace, int m, int 
     // last batch is always incomplete
     // if size is not divisible by batch
     if (size % batch > 0) {
-        for (i = size - (size % batch); i < size; ++i) {
-            mapper.map(std::to_string(i), lines[i]);
+        for (int i = size - (size % batch); i < size; ++i) {
+            mapper.map(std::to_string(b), lines[i]);
             printProgress(i + 1, size, false);
         }
     }
@@ -138,7 +150,7 @@ void countWords(const std::vector<std::string>& lines, bool inplace, int m, int 
     int in = -1;   // input run index
     int out = -1;  // output run index
     int step = 0;  // phase of merge
-    size_t runs = lines.size();  // number of input
+    size_t runs = b + 1;         // number of input
     size_t mx = runs / m;        // number of runs to be merged
     size_t rem = runs % m;       // number of runs remaining (not to be merged)
     size_t output = mx + rem;    // number of output
