@@ -118,51 +118,51 @@ void countWords(std::vector<std::string>& lines, bool inplace, int m) {
 
     // m-way balanced merge
     std::vector<std::thread> threads;
-    int in = -1;  // input run index
+    int in = -1;   // input run index
     int out = -1;  // output run index
-    int step = 0;
+    int step = 0;  // phase of merge
     size_t runs = lines.size();  // number of input
     size_t mx = runs / m;        // number of runs to be merged
-    size_t rem = runs % m;       // number of runs remaining (not merged)
-    size_t output = mx + rem;      // number of output
+    size_t rem = runs % m;       // number of runs remaining (not to be merged)
+    size_t output = mx + rem;    // number of output
     std::string i_key = std::to_string(step);
 
+    // repeat merge until we get single run
     while (runs > 1) {
-        ++step;
-        std::string o_key = std::to_string(step);
-        size_t mem = Profiler::getInstance()->getAllocatedMemory();
-        std::cout << '[' << step << "]\t" << m << "-way merge : "
-            << runs << " runs, " << output << " output, " << toBytesFormat(mem) << std::endl;
-
-        if (mx < 1) {  // if nothing can be merged
-            --step;
-            --m;
+        // if nothing can be merged because m is too high
+        if (mx < 1) {
+            m = runs;
             mx = runs / m;
             rem = runs % m;
             output = mx + rem;
             continue;
         }
 
+        ++step;
+        std::string o_key = std::to_string(step);
+        size_t mem = Profiler::getInstance()->getAllocatedMemory();
+        std::cout << '[' << step << "]\t" << m << "-way merge : "
+            << runs << " runs, " << output << " output, " << toBytesFormat(mem) << std::endl;
+
+        // merge runs in parallel tasks
         for (int i = 0; i < mx; ++i) {
             threads.emplace_back([&]() {
                 std::vector<std::string> files;
 
                 for (int j = 0; j < m; j++) {
-                    ++in;  // todo apply mutex
-                    std::string r_key = std::to_string(in);
+                    std::string r_key = std::to_string(in + 1);
                     std::string filename = "run_" + i_key + "_" + r_key + ".txt";
                     std::ifstream file(filename);
 
-                    if (file.is_open()) {
-                        files.push_back(filename);
+                    if (!file.is_open()) {
+                        return;
                     }
-                    else {
-                        --in;
-                        break;
-                    }
+
+                    files.push_back(filename);
+                    ++in;
                 }
 
-                ++out;  // todo apply mutex
+                ++out;
                 std::string r_key = std::to_string(out);
                 std::string filename;
 
@@ -176,7 +176,7 @@ void countWords(std::vector<std::string>& lines, bool inplace, int m) {
                 WordCountReducer reducer(filename);
                 reducer.reduce(files);
                 reducer.writeRun();
-                });
+            });
         }
 
         // wait for parallel tasks to complete
@@ -214,6 +214,7 @@ void countWords(std::vector<std::string>& lines, bool inplace, int m) {
             o_file.close();
         }
 
+        // reset and prepare for next step
         threads.clear();
         runs = out + 1;
         mx = runs / m;
