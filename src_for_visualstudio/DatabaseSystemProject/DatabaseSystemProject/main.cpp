@@ -25,19 +25,6 @@ bool getFileNameFromDialog(std::wstring& outFilename) {
     return false;
 }
 
-long getLines(const std::wstring& filename) {
-    std::ifstream file(filename);
-    std::string word;
-    long lines = 0;
-
-    if (file.is_open()) {
-        while (file >> word) {
-            ++lines;
-        }
-    }
-    return lines;
-}
-
 int main() {
     // Change system locale
     auto locale = std::locale(".utf-8");
@@ -57,7 +44,19 @@ int main() {
         return 1;
     }
 
-    std::cout << getLines(inputFilename) << " lines of text found!" << std::endl;
+    auto lines = getFileLines(inputFilename);
+    std::cout << lines.size() << " lines of text found!" << std::endl;
+
+
+    // Prompt to select batch size
+    int batch = 0;
+
+    while (batch < 1) {
+        std::cout << std::endl;
+        std::cout << "Batch size: ";
+        std::cin >> batch;
+    }
+
 
     // Prompt to select sorting algorithm
     int mode = 0;
@@ -76,9 +75,10 @@ int main() {
     if (!inplace) {
         std::string str;
         std::cout << std::endl;
-        std::cout << "Select m-way balanced merge (default=2): ";
+        std::cout << "Select m-way merge (default=2): ";
         std::cin.ignore(INT_MAX, '\n');
         std::getline(std::cin, str);
+        std::cout << std::endl;
 
         try {
             m = std::stoi(str);
@@ -92,7 +92,7 @@ int main() {
     auto& profiler = Profiler::start();
 
     // Run map-reduce application
-    countWords(inputFilename, inplace, m);
+    countWords(lines, inplace, m, batch);
 
     // Aggregate benchmarking data
     auto benchmark = profiler.finish();

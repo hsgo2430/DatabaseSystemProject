@@ -7,7 +7,7 @@
 #include <iostream>
 #include <windows.h>
 
-std::vector<std::string> getFileLines(const std::string& filename) {
+std::vector<std::string> getFileLines(const std::wstring& filename) {
     std::ifstream file(filename);
     std::vector<std::string> data;
     std::string line;
@@ -20,6 +20,7 @@ std::vector<std::string> getFileLines(const std::string& filename) {
     return data;
 }
 
+// deprecated
 std::string wideStringToString(const std::wstring& wstr) {
     if (wstr.empty()) return std::string();
 
@@ -29,28 +30,21 @@ std::string wideStringToString(const std::wstring& wstr) {
     return strTo;
 }
 
-void printProgress(long target, bool init) {
-    static std::mutex m;
-    static int counter = 0;
+void printProgress(long counter, long target, bool init) {
     static int prev = -1;
 
-    m.lock();
-
     if (init) {
-        counter = -1;
         prev = -1;
         std::cout << "    ";
     }
 
-    int progress = static_cast<int>(static_cast<double>(++counter) / target * 100);
+    int progress = static_cast<int>(static_cast<double>(counter) / target * 100);
 
     if (progress != prev) {
         prev = progress;
         std::cout << "\b\b\b\b    \b\b\b\b";
         printf("%3d%%", progress);
     }
-
-    m.unlock();
 }
 
 std::string toBytesFormat(long bytes) {
