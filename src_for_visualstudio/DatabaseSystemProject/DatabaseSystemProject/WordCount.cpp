@@ -87,23 +87,40 @@ void WordCountReducer::writeRun() {
     }
 }
 
-void countWords(std::vector<std::string>& lines, bool inplace, int m) {
+void countWords(const std::vector<std::string>& lines, bool inplace, int m, int batch) {
     WordCountMapper mapper(inplace);
+    long size = static_cast<double>(lines.size());
+    long i = 0;
+    long counter = 0;
     std::vector<std::thread> mapThreads;
-    long t_num = static_cast<double>(lines.size());
+    std::mutex mtx;
 
     std::cout << "Mapping words...";
-    printProgress(t_num, true);
+    printProgress(i, size, true);
 
-    for (long i = 0; i < t_num; ++i) {
-        mapThreads.emplace_back([line = lines[i], i, &mapper, t_num]() {
-            mapper.map(std::to_string(i), line);
-            printProgress(t_num, false);
+    for (i = 0; (i + batch - 1) < size; i += batch) {
+        mapThreads.emplace_back([i, size, batch, &counter, &lines, &mtx, &mapper]() {
+            for (int b = 0; b < batch; ++b) {
+                mapper.map(std::to_string(i), lines[i + b]);
+            }
+            mtx.lock();
+            counter += batch;
+            printProgress(counter, size, false);
+            mtx.unlock();
         });
     }
 
     for (auto& thread : mapThreads) {
         thread.join();
+    }
+
+    // last batch is always incomplete
+    // if size is not divisible by batch
+    if (size % batch > 0) {
+        for (i = size - (size % batch); i < size; ++i) {
+            mapper.map(std::to_string(i), lines[i]);
+            printProgress(i + 1, size, false);
+        }
     }
 
     std::cout << std::endl;
