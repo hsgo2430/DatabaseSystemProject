@@ -7,7 +7,7 @@
 #include <iostream>
 #include <windows.h>
 
-std::vector<std::string> getFileLines(const std::string& filename) {
+std::vector<std::string> getFileLines(const std::wstring& filename) {
     std::ifstream file(filename);
     std::vector<std::string> data;
     std::string line;
@@ -20,6 +20,7 @@ std::vector<std::string> getFileLines(const std::string& filename) {
     return data;
 }
 
+// deprecated
 std::string wideStringToString(const std::wstring& wstr) {
     if (wstr.empty()) return std::string();
 

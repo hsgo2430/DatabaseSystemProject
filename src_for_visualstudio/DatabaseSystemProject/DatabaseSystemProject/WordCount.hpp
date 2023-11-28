@@ -26,11 +26,11 @@ private:
 };
 
 /**
- * Count words in the given file.
- * @param filename name of the input file
+ * Count words in the given lines of text.
+ * @param lines vector storing every line of text
  * @param inplace tells if external sorting algorithm should be applied to reduce tasks
  * @param m (optional) m-way balanced merge is applied only if inplace = true
  */
-void countWords(const std::wstring& filename, bool inplace, int m = 2);
+void countWords(std::vector<std::string>& lines, bool inplace, int m = 2);
 
 #include "WordCount.cpp"

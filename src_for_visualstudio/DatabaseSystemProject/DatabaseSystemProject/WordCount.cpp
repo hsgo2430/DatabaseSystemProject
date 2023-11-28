@@ -87,11 +87,8 @@ void WordCountReducer::writeRun() {
     }
 }
 
-void countWords(const std::wstring& filename, bool inplace, int m) {
+void countWords(std::vector<std::string>& lines, bool inplace, int m) {
     WordCountMapper mapper(inplace);
-    std::cout << std::endl;
-    std::wcout << L"Reading file: " << filename << std::endl;
-    auto lines = getFileLines(wideStringToString(filename));
     std::vector<std::thread> mapThreads;
     long t_num = static_cast<double>(lines.size());
 
@@ -121,65 +118,110 @@ void countWords(const std::wstring& filename, bool inplace, int m) {
 
     // m-way balanced merge
     std::vector<std::thread> threads;
-    int r = -1;  // input run index
-    int o = -1;  // output run index
+    int in = -1;  // input run index
+    int out = -1;  // output run index
     int step = 0;
-    size_t runs = lines.size();  // run size
-    size_t outs = runs / m;     // output size
+    size_t runs = lines.size();  // number of input
+    size_t mx = runs / m;        // number of runs to be merged
+    size_t rem = runs % m;       // number of runs remaining (not merged)
+    size_t output = mx + rem;      // number of output
     std::string i_key = std::to_string(step);
 
     while (runs > 1) {
         ++step;
         std::string o_key = std::to_string(step);
         size_t mem = Profiler::getInstance()->getAllocatedMemory();
-        std::cout << '[' << step << "]\t" << m << "-way merge : " << runs << " runs, " << outs << " outs, " << toBytesFormat(mem) << std::endl;
+        std::cout << '[' << step << "]\t" << m << "-way merge : "
+            << runs << " runs, " << output << " output, " << toBytesFormat(mem) << std::endl;
 
-        for (int i = 0; i < outs; i++) {
+        if (mx < 1) {  // if nothing can be merged
+            --step;
+            --m;
+            mx = runs / m;
+            rem = runs % m;
+            output = mx + rem;
+            continue;
+        }
+
+        for (int i = 0; i < mx; ++i) {
             threads.emplace_back([&]() {
                 std::vector<std::string> files;
 
                 for (int j = 0; j < m; j++) {
-                    ++r;
-                    std::string r_key = std::to_string(r);
-                    std::string rfilename = "run_" + i_key + "_" + r_key + ".txt";
-                    std::ifstream file(rfilename);
+                    ++in;  // todo apply mutex
+                    std::string r_key = std::to_string(in);
+                    std::string filename = "run_" + i_key + "_" + r_key + ".txt";
+                    std::ifstream file(filename);
 
                     if (file.is_open()) {
-                        files.push_back(rfilename);
+                        files.push_back(filename);
                     }
                     else {
-                        --r;
+                        --in;
                         break;
                     }
                 }
 
-                ++o;
-                std::string r_key = std::to_string(o);
-                std::string output;
+                ++out;  // todo apply mutex
+                std::string r_key = std::to_string(out);
+                std::string filename;
 
-                if (outs > 1) {
-                    output = "run_" + o_key + "_" + r_key + ".txt";
+                if (output > 1) {
+                    filename = "run_" + o_key + "_" + r_key + ".txt";
                 }
                 else {
-                    output = "output.txt";
+                    filename = "output.txt";
                 }
 
-                WordCountReducer reducer(output);
+                WordCountReducer reducer(filename);
                 reducer.reduce(files);
                 reducer.writeRun();
-            });
+                });
         }
 
+        // wait for parallel tasks to complete
         for (auto& thread : threads) {
             thread.join();
         }
 
+        // copy runs remaining
+        for (int i = 0; i < rem; ++i) {
+            ++in;
+            std::string r_key = std::to_string(in);
+            std::string i_filename = "run_" + i_key + "_" + r_key + ".txt";
+            std::ifstream i_file(i_filename);
+
+            if (!i_file.is_open()) {
+                return;
+            }
+
+            ++out;
+            r_key = std::to_string(out);
+            std::string o_filename = "run_" + o_key + "_" + r_key + ".txt";
+            std::ofstream o_file(o_filename);
+            std::string line;
+
+            if (!o_file.is_open()) {
+                i_file.close();
+                return;
+            }
+
+            while (std::getline(i_file, line)) {
+                o_file << line << std::endl;
+            }
+
+            i_file.close();
+            o_file.close();
+        }
+
         threads.clear();
-        runs = o + 1;
-        outs = runs / m;
+        runs = out + 1;
+        mx = runs / m;
+        rem = runs % m;
+        output = mx + rem;
         i_key = o_key;
-        r = -1;
-        o = -1;
+        in = -1;
+        out = -1;
     }
 
     std::cout << "Merge complete." << std::endl;
