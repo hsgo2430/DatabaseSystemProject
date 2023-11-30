@@ -25,7 +25,7 @@ bool getFileNameFromDialog(std::wstring& outFilename) {
     return false;
 }
 
-int main() {
+int run() {
     // Change system locale
     auto locale = std::locale(".utf-8");
     std::locale::global(locale);    // Set global locale as UTF-8
@@ -36,11 +36,10 @@ int main() {
 
     // Prompt to select a file
     std::wstring inputFilename;
-    std::cout << "Please select a file..." << std::endl;
+    std::cout << "Please select a file." << std::endl;
 
     if (!getFileNameFromDialog(inputFilename)) {
         std::cout << "No file was selected." << std::endl;
-        system("pause");
         return 1;
     }
 
@@ -101,7 +100,19 @@ int main() {
     std::cout << "Elapsed time:\t" << toTimeFormat(benchmark.elapsedTime) << std::endl;
     std::cout << "Maximum memory:\t" << toBytesFormat(benchmark.maxMemory) << std::endl;
     std::cout << "Average memory:\t" << toBytesFormat(benchmark.avgMemory) << std::endl;
+}
 
-    system("pause");   // Keep terminal open (for Windows)
-    return 0;
+int main() {
+    try {
+        int result = run();
+        system("pause");   // Keep terminal open (for Windows)
+        return result;
+    }
+    catch (...) {
+        char message[200];
+        strerror_s(message, sizeof(message), errno);
+        std::cerr << message << std::endl;
+        system("pause");
+        return 1;
+    }
 }

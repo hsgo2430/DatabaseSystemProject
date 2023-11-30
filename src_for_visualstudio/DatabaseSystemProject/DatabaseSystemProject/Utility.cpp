@@ -1,21 +1,31 @@
 #include <string>
-#include <vector>
+#include <deque>
 #include <mutex>
 #include <cstdlib>
 #include <cstdio>
 #include <fstream>
 #include <iostream>
 #include <windows.h>
+#define MAX_OPEN_FILE 500
 
-std::vector<std::string> getFileLines(const std::wstring& filename) {
+static std::mutex fileMutex;
+int fileCount = 0;
+
+std::deque<std::string> getFileLines(const std::wstring& filename) {
     std::ifstream file(filename);
-    std::vector<std::string> data;
-    std::string line;
+    std::deque<std::string> data;
+    //std::string line;
 
-    while (std::getline(file, line)) {
-        data.push_back(line);
+    //while (std::getline(file, line)) {
+    //    data.push_back(line);
+    //}
+
+    const int MAX_LENGTH = 524288;
+    char* line = new char[MAX_LENGTH];
+
+    while (file.getline(line, MAX_LENGTH)) {
+        data.push_back(std::string(line));
     }
-    file.close();
 
     return data;
 }
@@ -91,4 +101,43 @@ std::string toTimeFormat(long milliseconds) {
     }
     
     return std::string(buf);
+}
+
+bool writeFile(std::ofstream &file, const std::string& filename, std::ios::openmode mode) {
+    //fileMutex.lock();
+    //int tmpCount = fileCount + 1;
+    //fileMutex.unlock();
+
+    //if (tmpCount > MAX_OPEN_FILE) {
+        //return false;
+    //}
+
+    file.open(filename, mode);
+
+    if (file.is_open()) {
+        //fileMutex.lock();
+        //++fileCount;
+        //fileMutex.unlock();
+        return true;
+    }
+    else {
+        throw std::system_error(EFAULT, std::iostream_category(), "Failed to write file");
+        return false;
+    }
+}
+
+void closeFile(std::ofstream &file) {
+    try {
+        file.close();
+    }
+    catch (...) {
+        char message[200];
+        strerror_s(message, sizeof(message), errno);
+        std::cerr << "Failed to close a file" << ": " << message << std::endl;
+        return;
+    }
+
+    //fileMutex.lock();
+    //--fileCount;
+    //fileMutex.unlock();
 }

@@ -7,6 +7,8 @@
 #include <sstream>
 #include <cctype>
 #include <filesystem>
+#include <cerrno>
+#include <unordered_map>
 #include "Profiler.hpp"
 #include "WordCount.hpp"
 #include "Utility.hpp"
@@ -17,41 +19,57 @@ WordCountMapper::WordCountMapper(bool inplace) {
     WordCountMapper::inplace = inplace;
 }
 
-void WordCountMapper::map(const std::string& key, const std::string& value) {
-    std::string str = value;
-    std::transform(str.cbegin(), str.cend(), str.begin(), [](unsigned char c) {
+void WordCountMapper::map(const std::string& key, std::string& value) {
+    std::transform(value.cbegin(), value.cend(), value.begin(), [](unsigned char c) {
         // Preprocess input keywords
         return std::isalpha(c) ? std::tolower(c) : ' ';
     });
 
-    std::vector<std::pair<std::string, int>> pairs;
-    std::istringstream stream(str);
+    std::istringstream stream(value);
     std::string word;
 
+    if (inplace) {
+        while (stream >> word) {
+            std::pair<std::string, int> pair(word, 1);
+            globalQueue.push(pair);
+        }
+        return;
+    }
+
+    std::unordered_map<std::string, int> map;
+
     while (stream >> word) {
-        std::pair<std::string, int> wordCount(word, 1);
-        pairs.push_back(wordCount);
-        concurrentQueue.push(wordCount);
+        ++map[word];
     }
 
-    if (!inplace) {
-        // A file storing intermediate mapping result
-        std::string filename = getRunFilename(std::to_string(0), key);
-        std::ofstream outputFile(filename, std::ios::app);
+    // A file storing intermediate mapping result
+    std::string filename = getRunFilename(std::to_string(0), key);
+    std::ofstream outputFile;
+    static std::mutex mtx;
 
-        if (!outputFile.is_open()) {
-            throw std::runtime_error("File cannot be created!");
-        }
+    mtx.lock();
+    bool open = writeFile(outputFile, filename, std::ios::app | std::ios::out);
+    mtx.unlock();
 
-        for (auto pair : pairs) {
-            outputFile << pair.first << ": " << pair.second << '\n';
-        }
-        outputFile.close();
+    while (!open) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        mtx.lock();
+        open = writeFile(outputFile, filename, std::ios::app | std::ios::out);
+        std::cout << "Attempting to re-open file: " << filename << std::endl;
+        mtx.unlock();
     }
+
+    mtx.lock();
+    for (auto pair : map) {
+        outputFile << pair.first << ": " << pair.second << '\n';
+    }
+    mtx.unlock();
+
+    closeFile(outputFile);
 }
 
-ConcurrentQueue<std::pair<std::string, int>>& WordCountMapper::getQueue() {
-    return concurrentQueue;
+ConcurrentQueue<std::pair<std::string, int>>& WordCountMapper::getGlobalQueue() {
+    return globalQueue;
 }
 
 WordCountReducer::WordCountReducer(const std::string& filename) : outputFile(filename) {}
@@ -60,10 +78,11 @@ WordCountReducer::~WordCountReducer() {
     outputFile.close();
 }
 
-void WordCountReducer::reduce(ConcurrentQueue<std::pair<std::string, int>>& concurrentQueue) {
-    std::pair<std::string, int> wordCount;
-    while (concurrentQueue.try_pop(wordCount)) {
-        results[wordCount.first] += wordCount.second;
+void WordCountReducer::reduce(ConcurrentQueue<std::pair<std::string, int>>& queue) {
+    std::pair<std::string, int> pair;
+
+    while (queue.try_pop(pair)) {
+        results[pair.first] += pair.second;
     }
 }
 
@@ -99,7 +118,7 @@ std::string getRunFilename(const std::string& step, const std::string& index) {
     return filename;
 }
 
-void countWords(const std::vector<std::string>& lines, bool inplace, int m, int batch) {
+void countWords(std::deque<std::string>& lines, bool inplace, int m, int batch) {
     WordCountMapper mapper(inplace);
     long size = static_cast<double>(lines.size());
     long b = 0;        // batch index
@@ -116,22 +135,41 @@ void countWords(const std::vector<std::string>& lines, bool inplace, int m, int 
 
     for (int i = 0; (i + batch - 1) < size; i += batch) {
         mapThreads.emplace_back([i, b, size, batch, &counter, &lines, &mtx, &mapper]() {
-            std::string key = std::to_string(b);
-            std::string filename = getRunFilename(std::to_string(0), key);
+            try {
+                std::string key = std::to_string(b);
+                std::string filename = getRunFilename(std::to_string(0), key);
+                std::string value;
 
-            // ensure that new file doesn't overlap with existing one
-            remove(filename.c_str());
+                // ensure that new file doesn't overlap with existing one
+                remove(filename.c_str());
 
-            // map lines in batch
-            for (int j = 0; j < batch; ++j) {
-                mapper.map(key, lines[i + j]);
+                // combine lines into single string
+                for (int j = 0; j < batch; ++j) {
+                    mtx.lock();
+                    value.append(lines.front()).append(" ");
+                    lines.pop_front();
+                    mtx.unlock();
+                    //value.append(lines[i + j]).append(" ");
+                }
+
+                // map lines in batch
+                mapper.map(key, value);
+
+                // critical section
+                mtx.lock();
+                counter += batch;
+                printProgress(counter, size, false);
+                mtx.unlock();
             }
-
-            // critical section
-            mtx.lock();
-            counter += batch;
-            printProgress(counter, size, false);
-            mtx.unlock();
+            catch (const std::system_error& e) {
+                std::clog << e.what() << " (" << e.code() << ")" << std::endl;
+            }
+            catch (const std::exception& e) {
+                std::clog << e.what() << std::endl;
+            }
+            catch (...) {
+                std::cout << "Unknown exception!" << std::endl;
+            }
         });
 
         ++b;
@@ -145,7 +183,8 @@ void countWords(const std::vector<std::string>& lines, bool inplace, int m, int 
     // if size is not divisible by batch
     if (size % batch > 0) {
         for (int i = size - (size % batch); i < size; ++i) {
-            mapper.map(std::to_string(b), lines[i]);
+            mapper.map(std::to_string(b), lines.front());
+            lines.pop_front();
             printProgress(i + 1, size, false);
         }
     }
@@ -154,7 +193,7 @@ void countWords(const std::vector<std::string>& lines, bool inplace, int m, int 
 
     if (inplace) {
         WordCountReducer reducer("output.txt");
-        reducer.reduce(mapper.getQueue());
+        reducer.reduce(mapper.getGlobalQueue());
         reducer.writeRun();
         std::cout << "Reduce complete." << std::endl;
         return;
