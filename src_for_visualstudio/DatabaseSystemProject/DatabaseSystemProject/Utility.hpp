@@ -8,7 +8,7 @@ std::string wideStringToString(const std::wstring& wstr);
 
 void printProgress(long counter, long target, bool init);
 
-std::string toBytesFormat(long bytes);
+std::string toBytesFormat(size_t bytes);
 
 std::string toTimeFormat(long milliseconds);
 

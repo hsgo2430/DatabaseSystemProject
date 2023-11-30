@@ -57,7 +57,7 @@ void printProgress(long counter, long target, bool init) {
     }
 }
 
-std::string toBytesFormat(long bytes) {
+std::string toBytesFormat(size_t bytes) {
     static const size_t BUF_SIZE = 100;
     static const char* suffix[] = {
         "bytes", "kB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB", "RB", "QB"
