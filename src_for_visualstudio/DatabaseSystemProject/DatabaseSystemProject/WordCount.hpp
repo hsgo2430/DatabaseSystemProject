@@ -25,6 +25,8 @@ private:
     std::map<std::string, int> results;
 };
 
+std::string getRunFilename(const std::string& step, const std::string& index);
+
 /**
  * Count words in the given lines of text.
  * @param lines vector storing every line of text
