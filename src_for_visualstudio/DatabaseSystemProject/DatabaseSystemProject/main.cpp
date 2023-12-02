@@ -1,4 +1,5 @@
-﻿#include <iostream>
+﻿#include <filesystem>
+#include <iostream>
 #include <fstream>
 #include <cstdlib>
 #include <windows.h>
@@ -6,6 +7,8 @@
 #include "WordCount.hpp"
 #include "Profiler.hpp"
 #include "Utility.hpp"
+
+namespace fs = std::filesystem;
 
 bool getFileNameFromDialog(std::wstring& outFilename) {
     wchar_t filename[MAX_PATH] = { 0 };
@@ -33,10 +36,9 @@ int run() {
     std::wcin.imbue(locale);        // Apply locale to wcin
     SetConsoleOutputCP(CP_UTF8);    // Apply locale to console
 
-
     // Prompt to select a file
     std::wstring inputFilename;
-    std::cout << "Please select a file." << std::endl;
+    std::cout << "Please select a file..." << std::endl;
 
     if (!getFileNameFromDialog(inputFilename)) {
         std::cout << "No file was selected." << std::endl;
@@ -44,8 +46,14 @@ int run() {
     }
 
     auto lines = getFileLines(inputFilename);
-    std::cout << lines.size() << " lines of text found!" << std::endl;
-
+    auto filename = fs::path(inputFilename).filename().string();
+    auto space = filename.length();
+    size_t size = fs::file_size(inputFilename);
+    
+    // Print file info
+    std::cout << std::endl;
+    std::cout << std::setw(space) << "File name" << std::setw(16) << "File size" << std::setw(12) << "Lines" << std::endl;
+    std::cout << std::setw(space) << filename << std::setw(16) << toBytesFormat(size) << std::setw(12) << lines.size() << std::endl;
 
     // Prompt to select batch size
     int batch = 0;
@@ -55,7 +63,6 @@ int run() {
         std::cout << "Batch size: ";
         std::cin >> batch;
     }
-
 
     // Prompt to select sorting algorithm
     int mode = 0;
