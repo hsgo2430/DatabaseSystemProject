@@ -238,7 +238,7 @@ void mergeRoutine(int m, size_t output, size_t &mx, int &in, int &out, const std
 
 void countWords(std::deque<std::string>& lines, bool inplace, int m, int batch) {
     WordCountMapper mapper(inplace);
-    long maps = ceil((double) lines.size() / batch); // number of mappings required
+    long maps = static_cast<long>(ceil((double) lines.size() / batch)); // number of mappings required
     long b = 0;        // batch index
     //long counter = 0;  // number of lines processed
     std::vector<std::thread> mapThreads;
@@ -252,19 +252,13 @@ void countWords(std::deque<std::string>& lines, bool inplace, int m, int batch) 
     printProgress(0, maps, true);
 
     //for (int i = 0; (i + batch - 1) < size; i += batch) {
-    unsigned int core = std::thread::hardware_concurrency();
+    int core = std::thread::hardware_concurrency();
     core = (core > 4) ? core : 4;
 
     for (int i = 0; i < core; ++i) {
         mapThreads.emplace_back([maps, batch, &b, &lines, &mapper]() {
             try {
                 mapRoutine(maps, batch, b, lines, mapper);
-            }
-            catch (const std::system_error& e) {
-                std::cout << e.what() << " (" << e.code() << ")" << std::endl;
-            }
-            catch (const std::ios_base::failure& e) {
-                std::cout << e.what() << '\n';
             }
             catch (const std::exception& e) {
                 std::cout << e.what() << std::endl;
@@ -335,9 +329,6 @@ void countWords(std::deque<std::string>& lines, bool inplace, int m, int batch) 
             threads.emplace_back([m, output, &mx, &in, &out, &i_key, &o_key]() {
                 try {
                     mergeRoutine(m, output, mx, in, out, i_key, o_key);
-                }
-                catch (const std::system_error& e) {
-                    std::cout << e.what() << " (" << e.code() << ")" << std::endl;
                 }
                 catch (const std::ios_base::failure& e) {
                     std::cout << e.what() << '\n';
