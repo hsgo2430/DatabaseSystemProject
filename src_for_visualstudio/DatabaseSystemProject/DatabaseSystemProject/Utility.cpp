@@ -30,7 +30,6 @@ std::deque<std::string> getFileLines(const std::wstring& filename) {
     return data;
 }
 
-// deprecated
 std::string wideStringToString(const std::wstring& wstr) {
     if (wstr.empty()) return std::string();
 
@@ -75,7 +74,7 @@ std::string toBytesFormat(size_t bytes) {
     return std::string(buf);
 }
 
-std::string toTimeFormat(long milliseconds) {
+std::string toTimeFormat(time_t milliseconds) {
     static const size_t BUF_SIZE = 200;
 
     if (milliseconds < 10000) {
@@ -84,7 +83,7 @@ std::string toTimeFormat(long milliseconds) {
     }
 
     char* buf = (char*) malloc(sizeof(char) * BUF_SIZE);
-    int sec = milliseconds / 1000;
+    int sec = static_cast<int>(milliseconds / 1000);
     int min = sec / 60;
     int hr = min / 60;
     min -= hr * 60;
@@ -103,7 +102,7 @@ std::string toTimeFormat(long milliseconds) {
     return std::string(buf);
 }
 
-bool writeFile(std::ofstream &file, const std::string& filename, std::ios::openmode mode) {
+void writeFile(std::ofstream &file, const std::string& filename, std::ios::openmode mode) {
     //fileMutex.lock();
     //int tmpCount = fileCount + 1;
     //fileMutex.unlock();
@@ -113,17 +112,7 @@ bool writeFile(std::ofstream &file, const std::string& filename, std::ios::openm
     //}
 
     file.open(filename, mode);
-
-    if (file.is_open()) {
-        //fileMutex.lock();
-        //++fileCount;
-        //fileMutex.unlock();
-        return true;
-    }
-    else {
-        throw std::system_error(EFAULT, std::iostream_category(), "Failed to write file");
-        return false;
-    }
+    file.exceptions(std::ios::failbit | std::ifstream::badbit);
 }
 
 void closeFile(std::ofstream &file) {

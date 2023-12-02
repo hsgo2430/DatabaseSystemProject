@@ -12,37 +12,6 @@ private:
     std::mutex mtx;
 };
 
-//template <typename Key, typename T>
-//class ConcurrentMap {
-//public:
-//    typedef typename std::unordered_map<Key, T>::iterator iter;
-//
-//    /**
-//     * Get a value associated with the key
-//     */
-//    T get(Key key);
-//
-//    /**
-//     * Adds new entry to this map.
-//     */
-//    void put(Key key, T value);
-//
-//    /**
-//     * Thread safety is not guaranteed.
-//     * @return iterator of first element
-//     */
-//    typename iter begin();
-//
-//    /**
-//     * Thread safety is not guaranteed.
-//     * @return iterator of last element
-//     */
-//    typename iter end();
-//private:
-//    std::unordered_map<Key, T> map;
-//    std::mutex mtx;
-//};
-
 class IMapper {
 public:
     virtual ~IMapper() {}
